@@ -73,3 +73,6 @@ rulebooks/**/*.epub
 
 INFO.md
 PROD.md
+
+# Bench and closed-loop eval output (scripts write under docs/bench/<date>/)
+docs/bench/
