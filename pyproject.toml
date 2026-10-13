@@ -4,7 +4,7 @@ version = "0.0.0"
 description = "Voice-first AI Dungeon Master"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
-license = { text = "Proprietary" }
+license = { text = "MIT" }
 dependencies = []
 
 [dependency-groups]

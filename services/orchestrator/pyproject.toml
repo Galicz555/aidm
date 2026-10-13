@@ -3,7 +3,7 @@ name = "aidm-orchestrator"
 version = "0.1.0"
 description = "AIDM voice loop: provider-based STT/LLM/TTS, mode=public|private"
 requires-python = ">=3.12,<3.14"
-license = { text = "Proprietary" }
+license = { text = "MIT" }
 dependencies = [
     # WebRTC pulls aiortc + opencv-python (Phase 6 browser transport).
     # opencv is large (~80MB wheel) but unavoidable — pipecat ties video and
