@@ -1,0 +1,31 @@
+scenario:
+  id: self-grep-prohibit
+  category: regress
+  fix_ref: >
+    Persona prompts updated with explicit 'never grep on phrases YOU wrote'
+    rule (dm.en.md, dm.hu.md, dm.en.private.md, dm.hu.private.md)
+  replays: 10
+  pass_threshold: 0.7
+
+assertions:
+  - id: no-grep-on-own-imagery
+    kind: behavioral
+    description: >
+      No vault_grep call's `pattern` argument may be a (case-insensitive)
+      substring of any earlier assistant turn's text. The DM is supposed to
+      grep only on nouns the *player* names — its own descriptions are not
+      canon yet and grep returns nothing useful on them.
+    rule: no_grep_pattern_in_prior_assistant
+    min_pattern_words: 2
+
+  - id: total-grep-calls-low
+    kind: behavioral
+    description: >
+      Across these 4 turns of "look around / continue" with no named entities,
+      a healthy DM grep-count is 0-1. > 2 grep calls suggests the model is
+      over-querying on its own prose, which is the failure mode the persona
+      rule targets. Cap is intentionally generous; the assertion above is the
+      tighter check.
+    rule: max_tool_calls
+    tool: vault_grep
+    max_calls: 2

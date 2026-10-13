@@ -1,0 +1,100 @@
+scenario:
+  id: drift-30turn
+  category: regress
+  fix_ref: >
+    30-turn drift measurement on the Lyra/shelter narrative. Continues
+    the 07 arc with deliberate beat shifts every ~5 turns (meet →
+    settle → trust build → first vulnerability → external threat →
+    aftermath → equilibrium). Designed to surface the long-context
+    drift that 07's 12-turn run can't see: [state:] emission rate over
+    a session arc, mood/goal evolution under sustained interaction,
+    and recycled-phrase / canon-violation breakdown past turn 20.
+
+    Pair scoring with the per-turn ``npc_state_emission`` beacon
+    landed in NPCStateInlineParser — bench harness scores from the
+    captured history.json, but production logs the beacon for live
+    drift charts.
+  replays: 3
+  pass_threshold: 0.6
+
+runner:
+  inject_dir: "fixtures"
+  inject_into: "runs/first-party"
+
+assertions:
+  - id: inline-state-emitted-on-most-turns
+    kind: behavioral
+    description: >
+      [state: lyra ...] directive must appear in at least 22 of 30 assistant
+      turns (~73%). The HistoryStabilizer + persona prompt should hold
+      emission through the long-context drift zone. <50% means the
+      stabilizer is not earning its keep on a 30-turn arc.
+    rule: assistant_text_matches_min_turns
+    pattern: '\[state:\s*lyra\b'
+    min_turns: 22
+
+  - id: no-recycled-katechism
+    kind: deterministic
+    description: >
+      Mode-collapse signature phrases from the 06-26 live run must not
+      appear. 30 turns is the worst zone for self-imitation recycling.
+    rule: no_assistant_text_matches
+    pattern: '(shelter hums around you|for the first time since she stumbled into your path)'
+
+  - id: honor-no-explosion-override
+    kind: deterministic
+    description: >
+      Player declared at T7 there is no explosion / threat. The militia
+      broadcast at T17 is explicitly information-only, not-coming-here.
+      The DM must not narrate any door-bursting, breach, or
+      shelter-compromise in subsequent turns.
+    rule: no_assistant_text_matches
+    pattern: '(door explodes|warehouse collapses|something explodes|breach|burst inward|militia arrives|they find us)'
+
+  - id: no-assistant-voice-break
+    kind: deterministic
+    description: >
+      No assistant-tone tells in narration. Drift detector for the
+      "I apologize / let me adjust" leak class.
+    rule: no_assistant_text_matches
+    pattern: "(I apologize|my intent was never|let me adjust|I'm here to)"
+
+  - id: npc-canon-fetched
+    kind: behavioral
+    description: >
+      Sanity floor: vault accessed at T1 to load Lyra's sheet.
+    rule: any_of_tools_called
+    tools: [vault_grep, vault_read_file]
+
+  - id: state-directive-has-all-three-keys
+    kind: behavioral
+    description: >
+      At least 18 of 30 directives include all three keys
+      (mood/m=, goal/g=, mask/k=). Catches half-empty bracket emission
+      under long-context fatigue.
+    rule: state_directive_has_all_keys
+    slug: lyra
+    min_turns: 18
+
+  - id: lyra-mood-actually-evolves
+    kind: behavioral
+    description: >
+      Across 30 turns spanning 6 beat blocks, Lyra's mood should take
+      at least 6 distinct values. Frozen-record drift would peg this
+      to 2-3.
+    rule: state_directive_values_evolve
+    slug: lyra
+    key: mood
+    min_distinct: 6
+
+  - id: lyra-goal-actually-evolves
+    kind: behavioral
+    description: >
+      Same shape on scene_goal. The 30-turn arc covers six narrative
+      beats (warehouse → shelter setup → quiet domesticity → name
+      reveal → threat broadcast → equilibrium) so scene_goal must
+      shift at least 5 times.
+    rule: state_directive_values_evolve
+    slug: lyra
+    key: goal
+    min_distinct: 5

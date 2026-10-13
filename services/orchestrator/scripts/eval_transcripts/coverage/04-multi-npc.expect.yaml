@@ -1,0 +1,54 @@
+scenario:
+  id: multi-npc-dual-active
+  category: coverage
+  fix_ref: >
+    Coverage probe: two NPCs in scene must each get their own
+    npc_scene_enter + inline `[state: <slug> ...]` directive. Probes
+    whether the DM tracks them as distinct registry entries or
+    collapses them into one.
+  replays: 10
+  pass_threshold: 0.6
+
+runner:
+  inject_dir: "fixtures"
+  inject_into: "runs/first-party"
+
+assertions:
+  - id: both-npcs-in-scene
+    kind: behavioral
+    description: >
+      Both Marin and Hadrik are explicitly named and pre-seeded; the
+      DM should call npc_scene_enter for each within the first 2 turns.
+      A single scene_enter = the DM is collapsing the duo; this is the
+      core failure mode this scenario probes.
+    rule: min_tool_calls
+    tool: npc_scene_enter
+    min_calls: 2
+
+  - id: both-npcs-get-opening-state
+    kind: behavioral
+    description: >
+      Same threshold via inline `[state: ...]` — each NPC should land
+      with their own bracket-line opening mood/goal/mask. Two NPCs in
+      scene → ≥2 directives within the first 2 assistant turns.
+    rule: assistant_text_matches_min_turns
+    pattern: '\[state:\s*\w[\w-]*\b'
+    min_turns: 2
+
+  - id: both-names-in-narration
+    kind: behavioral
+    description: >
+      Both "Marin" and "Hadrik" should appear in the DM's narration
+      across the 3 turns. If only one name shows up, the DM is voicing
+      one and ignoring the other — registry calls without backing prose
+      are theatre.
+    rule: first_assistant_mentions_any
+    turn: 1
+    needles: ["Marin"]
+
+  - id: hadrik-named
+    kind: behavioral
+    description: Hadrik named in the opening or follow-up. Paired with the Marin check.
+    rule: first_assistant_mentions_any
+    turn: 1
+    needles: ["Hadrik"]

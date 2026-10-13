@@ -1,0 +1,23 @@
+{#- Mistral v3 Tekken layout, tolerant of system messages anywhere.
+
+    The orchestrator emits [persona system, turns..., scene-sheets
+    system, latest user, turn-contract system]; strict Tekken templates
+    raise on that. Here every system message is folded into the NEXT
+    user block; a trailing system (the turn contract) becomes a final
+    [INST] block of its own. No tool markup — llama.cpp falls back to
+    its generic tool-call handler. -#}
+{{- bos_token -}}
+{%- set ns = namespace(pending="") -%}
+{%- for m in messages -%}
+    {%- if m['role'] == 'system' -%}
+        {%- set ns.pending = ns.pending + m['content'] + '\n\n' -%}
+    {%- elif m['role'] == 'user' -%}
+        {{- '[INST]' + ns.pending + m['content'] + '[/INST]' -}}
+        {%- set ns.pending = "" -%}
+    {%- elif m['role'] == 'assistant' -%}
+        {{- m['content'] + eos_token -}}
+    {%- endif -%}
+{%- endfor -%}
+{%- if ns.pending -%}
+    {{- '[INST]' + ns.pending + '[/INST]' -}}
+{%- endif -%}

@@ -1,0 +1,75 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Production deploy artefacts (runtime state, never committed)
+/data/
+/certs/
+/deploy/secrets/
+# Active nginx config — symlink/copy of nginx-bootstrap.conf or nginx.conf,
+# swapped during deploy (see deploy/README.md).
+/deploy/nginx-active.conf
+
+node_modules/
+dist/
+build/
+.next/
+.svelte-kit/
+
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# Vault is the campaign data — track structure, ignore live session artifacts
+vault/sessions/*.draft.md
+vault/.obsidian/workspace*.json
+vault/.obsidian/cache/
+
+# Per-campaign Obsidian config: ignore all runtime/user state, but share
+# the templates and CSS snippets so every machine that clones the repo
+# gets the same scaffolding and visual polish.
+vault/*/.obsidian/*
+!vault/*/.obsidian/templates/
+!vault/*/.obsidian/templates/**
+!vault/*/.obsidian/snippets/
+!vault/*/.obsidian/snippets/**
+
+# Local model artifacts and audio captures
+models/
+*.gguf
+*.safetensors
+recordings/
+*.wav
+*.mp3
+!docs/**/*.wav
+
+# Phase 7: voice clone reference clips for XTTS-v2 (private-mode TTS).
+# Mounted into services/tts at runtime; track structure (.gitkeep) but
+# not the audio itself — reference clips are large and often personal.
+voices/*
+!voices/.gitkeep
+!voices/README.md
+
+# Rulebook source material — usually copyrighted, sometimes large.
+# Track folder structure (.gitkeep, README) but never commit the
+# binaries themselves. Converted markdown lives in
+# vault/<campaign>/rules/ and IS committed.
+rulebooks/**/*.pdf
+rulebooks/**/*.docx
+rulebooks/**/*.epub
+
+INFO.md
+PROD.md

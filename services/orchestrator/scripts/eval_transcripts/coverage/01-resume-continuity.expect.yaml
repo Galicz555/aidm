@@ -1,0 +1,48 @@
+scenario:
+  id: resume-continuity-rich-log
+  category: coverage
+  fix_ref: >
+    Coverage probe: a rich session log (multi-NPC, multi-thread) should
+    anchor the opening narration to ≥2 named entities — proves the DM
+    is treating the resume body as memory, not just window dressing.
+  replays: 10
+  pass_threshold: 0.6
+
+runner:
+  inject_dir: "fixtures"
+  inject_into: "runs/first-party"
+  resume: "log:2026-06-22-180000"
+
+assertions:
+  - id: opening-anchors-to-two-named-entities
+    kind: behavioral
+    description: >
+      The opening assistant turn should mention at least TWO names from
+      the resume body (Marin, Hadrik, The Crooked Sparrow, the Veil's
+      collectors). One name = the DM is responding generically; two+ =
+      the DM is actually using the loaded memory to anchor the scene.
+    rule: first_assistant_mentions_any
+    turn: 1
+    needles: ["Marin", "Hadrik", "Crooked Sparrow", "Veil", "Old District"]
+
+  - id: no-sessions-relist
+    kind: deterministic
+    description: >
+      Same deterministic floor as regress/03 — the resume directive
+      forbids re-listing or re-reading the sessions/ dir when a resume
+      body is already injected. Catches a class of regression where the
+      directive gets weakened in a persona edit.
+    rule: tool_not_called_with_arg
+    tool: vault_list_dir
+    arg_name: path
+    arg_value_matches: "sessions"
+
+  - id: marin-or-hadrik-becomes-active-npc
+    kind: behavioral
+    description: >
+      Across the 3 turns, at least ONE of the named NPCs (Marin, Hadrik)
+      should be brought into the registry via npc_scene_enter. The model
+      is meant to materialise loaded NPCs as their dialogue starts.
+    rule: min_tool_calls
+    tool: npc_scene_enter
+    min_calls: 1

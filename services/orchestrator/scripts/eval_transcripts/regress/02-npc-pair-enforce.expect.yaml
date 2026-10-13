@@ -1,0 +1,32 @@
+scenario:
+  id: npc-pair-enforce
+  category: regress
+  fix_ref: >
+    NPC scene_enter / inline-state pairing — empty-state hint in
+    _fmt_state_line + 'emit [state: ...] next' hint on scene_enter result.
+    State updates flow through the inline `[state: <slug> mood=...; goal=...;
+    mask=...]` directive (not a tool call); we check that the directive
+    appears in the same assistant turn that introduces the NPC.
+  replays: 10
+  pass_threshold: 0.7
+
+assertions:
+  - id: scene-enter-paired-with-inline-state
+    kind: behavioral
+    description: >
+      Every npc_scene_enter(slug) is followed by a `[state: <slug> ...]`
+      inline directive in the same or next assistant turn. Replaces the
+      retired npc_update_state tool-pairing check.
+    rule: assistant_text_matches_min_turns
+    pattern: '\[state:\s*\w[\w-]*\b'
+    min_turns: 2
+
+  - id: barkeep-voiced-after-named
+    kind: behavioral
+    description: >
+      Once an NPC is named via vault_update_npc, that name appears in the
+      assistant's narration within the same or next turn — confirms the
+      naming actually canonicalized a speaking character, not a placeholder.
+    rule: npc_name_appears_in_narration
+    after_tool: vault_update_npc
+    within_turns: 2

@@ -1,0 +1,21 @@
+[project]
+name = "aidm-tts"
+version = "0.2.0"
+description = "MOSS-TTS-Nano streaming TTS server (AIDM private mode, Phase 7)."
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "torch==2.7.0",
+    "torchaudio==2.7.0",
+    "transformers==4.57.1",
+    "sentencepiece>=0.1.99",
+    "numpy>=1.24",
+    "onnxruntime>=1.20.0",
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.32.1",
+    "websockets==13.1",
+    "soundfile",
+    "einops",
+]
+
+[tool.uv]
+package = false

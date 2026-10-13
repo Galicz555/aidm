@@ -1,0 +1,212 @@
+# Tool-call bench fixtures for `scripts/bench_tool_calls.py`.
+#
+# Each case asserts: given this user utterance + the real DM persona +
+# the real vault tool schema, the local LLM should:
+#   1. emit *at least one* tool call (tool_called != None)
+#   2. that call should target `expected_tool`
+#   3. if `arg_field` + `arg_regex` are set, the named argument must
+#      match the regex (case-insensitive)
+#
+# Fixtures lean on the Vasfátyol Birodalom seed campaign that lives in
+# `vault/` (Hungarian; Elara, Balor, Vasfátyol Fellegvár, Szürke Erdő).
+# Keep the language tag honest — Hungarian utterances under locale: hu
+# so the persona prompt matches what the running orchestrator sends.
+
+cases:
+  # --- Information lookup: vault_grep on NPC names ---
+  - name: hu_npc_elara
+    locale: hu
+    user: "Mit tudsz Eláráról?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "elara"
+
+  - name: hu_npc_balor
+    locale: hu
+    user: "Ki az a Balor?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "balor"
+
+  - name: en_npc_elara
+    locale: en
+    user: "What do you know about Elara?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "elara"
+
+  # --- Information lookup: vault_grep on locations ---
+  - name: hu_loc_vasfatyol
+    locale: hu
+    user: "Mesélj Vasfátyol Fellegvárról."
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "vasf"
+
+  - name: hu_loc_szurke
+    locale: hu
+    user: "Milyen veszélyek leselkednek a Szürke Erdőben?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "sz(ü|u)rke"
+
+  - name: en_loc_iron_veil
+    locale: en
+    user: "Tell me about the Iron Veil Citadel."
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "iron|vasf"
+
+  # --- Information lookup: world/lore facts ---
+  - name: hu_lore_war
+    locale: hu
+    user: "Mi történt a háború alatt?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "h(á|a)bor(ú|u)"
+
+  - name: hu_lore_wolves
+    locale: hu
+    user: "Honnan jöttek a farkasok?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "farkas"
+
+  - name: hu_lore_mages
+    locale: hu
+    user: "Milyen mágus-rendek vannak ebben a világban?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "m(á|a)g(u|i)s|rend"
+
+  # --- Numeric-detail lookup that must hit vault_grep ---
+  - name: hu_population
+    locale: hu
+    user: "Hány lakosa van Vasfátyol Fellegvárnak?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "lakos|n(é|e)pess(é|e)g|vasf"
+
+  # --- Directory exploration at session start ---
+  - name: hu_session_start
+    locale: hu
+    user: "Kezdjük el a játékot. Mi van a vault-ban?"
+    expected_tool: vault_list_dir
+    arg_field: path
+    arg_regex: "^(\\.|sessions|campaigns)$"
+
+  - name: en_session_start
+    locale: en
+    user: "Let's start. What's in the vault?"
+    expected_tool: vault_list_dir
+    arg_field: path
+    arg_regex: "^(\\.|sessions|campaigns)$"
+
+  # --- File-name glob ---
+  - name: hu_glob_characters
+    locale: hu
+    user: "Milyen karakter-lapok léteznek? Listázd a fájlokat."
+    expected_tool: vault_glob
+    arg_field: pattern
+    arg_regex: "characters"
+
+  # --- Scene change → vault_set_scene ---
+  - name: hu_scene_change
+    locale: hu
+    user: "Bemegyek Vasfátyol Fellegvárba a kapun keresztül."
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "vasf"
+
+  - name: en_scene_change_explicit
+    locale: en
+    user: "I step into the Grey Forest, looking around."
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "(grey|sz(ü|u)rke).*erd(ő|o)|grey forest"
+
+  # --- Character state changes → vault_update_character ---
+  - name: hu_char_wounded
+    locale: hu
+    user: "A karakteremet, Thaddeust megsebezte egy farkas a kar(j)án. Jegyezd fel."
+    expected_tool: vault_update_character
+    arg_field: slug
+    arg_regex: "thad"
+
+  - name: en_char_oath
+    locale: en
+    user: "My character Thaddeus swears an oath to protect Elara. Record it on his sheet."
+    expected_tool: vault_update_character
+    arg_field: slug
+    arg_regex: "thad"
+
+  # --- Session log on end-of-session ---
+  - name: hu_end_session
+    locale: hu
+    user: "Köszi, mára elég volt, leállunk."
+    expected_tool: vault_write_session_log
+
+  - name: en_end_session
+    locale: en
+    user: "Thanks, that's enough for today. We're done."
+    expected_tool: vault_write_session_log
+
+  # --- Hard cases: ambiguous, requires choice of vault_grep ---
+  - name: hu_ambig_culture
+    locale: hu
+    user: "Milyen szokásaik vannak a helyieknek itt északon?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: ".+"
+
+  - name: hu_ambig_history
+    locale: hu
+    user: "Mi a háttértörténete ennek a területnek?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: ".+"
+
+  # --- Player-character introduction → vault_set_character ---
+  - name: hu_pick_character
+    locale: hu
+    user: "Thaddeus Vandorral játszom. Állítsd be aktív karakternek."
+    expected_tool: vault_set_character
+    arg_field: slug
+    arg_regex: "thad"
+
+  - name: en_pick_character
+    locale: en
+    user: "I'll be playing Thaddeus the Wanderer. Set him as the active character."
+    expected_tool: vault_set_character
+    arg_field: slug
+    arg_regex: "thad"
+
+  # --- File read after the grep result is implied ---
+  - name: hu_read_explicit
+    locale: hu
+    user: "Olvasd el az elara.md fájlt és mondd el mi van benne."
+    expected_tool: vault_read_file
+    arg_field: path
+    arg_regex: "elara"
+
+  - name: en_read_explicit
+    locale: en
+    user: "Read the file at npcs/balor.md and tell me what's in it."
+    expected_tool: vault_read_file
+    arg_field: path
+    arg_regex: "balor"
+
+  # --- Session-start continuity check ---
+  - name: hu_check_last_session
+    locale: hu
+    user: "Hol hagytuk abba múlt alkalommal?"
+    expected_tool: vault_list_dir
+    arg_field: path
+    arg_regex: "session"
+
+  - name: en_check_last_session
+    locale: en
+    user: "Where did we leave off last time?"
+    expected_tool: vault_list_dir
+    arg_field: path
+    arg_regex: "session"

@@ -1,0 +1,79 @@
+# Production compose stack for AIDM (public mode, WebRTC behind nginx + Cloudflare Access).
+#
+# Brought up on the Hetzner VPS as:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Layout (all three containers run on the host network so aiortc sees the
+# VPS's real public IP as the ICE host candidate — see services/orchestrator/
+# aidm/server.py and the AIDM_PUBLIC_IP env note in .env.example):
+#
+#   - orchestrator: binds 127.0.0.1:8000, talks to cloud providers
+#   - nginx:        binds 0.0.0.0:80,443; serves web/build/ static + /api proxy
+#   - certbot:      one-shot + daily renew; shares /etc/letsencrypt with nginx
+#
+# Secrets come from .env.prod (chmod 600, never committed). See deploy/README.md.
+
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+    image: aidm-orchestrator:prod
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env.prod
+    environment:
+      - AIDM_MODE=public
+      - AIDM_TRANSPORT=webrtc
+      - AIDM_SERVER_HOST=127.0.0.1
+      - AIDM_SERVER_PORT=8000
+      - AIDM_BUDGET_DB_PATH=/data/budget.db
+      - VAULT_PATH=/app/vault
+    volumes:
+      # Runtime vault — written by the LLM. NOT the repo's vault/ checkout.
+      # First-time deploy: `cp -r /opt/aidm/vault /srv/aidm-vault`.
+      - /srv/aidm-vault:/app/vault
+      # Budget SQLite + loguru file logs live here.
+      - ./data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - orchestrator
+    volumes:
+      # Active config — operator swaps between deploy/nginx-bootstrap.conf
+      # (first-boot, port 80 only) and deploy/nginx.conf (post cert issue,
+      # TLS). See deploy/README.md for the bootstrap dance.
+      - ./deploy/nginx-active.conf:/etc/nginx/nginx.conf:ro
+      - ./web/build:/srv/web:ro
+      - ./certs/letsencrypt:/etc/letsencrypt:ro
+      - ./certs/www:/var/www/certbot
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    # 12h sleep loop: cheap, well within Let's Encrypt's rate limits. The
+    # first cert is fetched manually before nginx switches to the TLS server
+    # block — see deploy/README.md. nginx auto-reload from this container is
+    # not attempted (cross-container signaling needs the docker socket which
+    # we don't want to mount). Renewal fires at 60d, cert expires at 90d, so
+    # the next `deploy.sh` run inside that 30d window picks it up via
+    # `docker compose up -d --build` restarting nginx. If you go that long
+    # without deploying, run `docker compose restart nginx` manually.
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 43200; done"
+    volumes:
+      - ./certs/letsencrypt:/etc/letsencrypt
+      - ./certs/www:/var/www/certbot

@@ -1,0 +1,20 @@
+[project]
+name = "aidm-stt"
+version = "0.1.0"
+description = "Faster-Whisper Large-v3 transcription server (AIDM private mode, Phase 7)."
+requires-python = ">=3.12"
+dependencies = [
+    "faster-whisper==1.0.3",
+    "ctranslate2>=4.4",
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.32.1",
+    "python-multipart==0.0.20",
+    "numpy>=1.26",
+]
+
+# The container builds via pip (see Dockerfile) for now; this file
+# documents the intended dependency set so contributors can rebuild
+# locally without re-reading the Dockerfile.
+
+[tool.uv]
+package = false

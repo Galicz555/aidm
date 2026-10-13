@@ -1,0 +1,52 @@
+scenario:
+  id: lyra-inline-discipline
+  category: regress
+  fix_ref: >
+    Auto-enter inline-state NPC, anti-anchor prompt rewrite, sampler params,
+    grep→read follow-through hardening. The 2026-06-26 live test produced
+    47 turns with 0 vault_read_file calls, 0 npc_scene_enter calls, body-mod
+    anchor cribbed verbatim from the persona example. This bench is the
+    quick smoke for whether the four-pronged fix actually holds.
+  replays: 10
+  pass_threshold: 0.8
+
+# Pre-seed lyra.md so vault_grep returns the path. The whole point is
+# to test whether the model FOLLOWS THE HIT — bare-name grep without a
+# read was the production failure mode.
+runner:
+  inject_dir: "fixtures"
+  inject_into: "runs/first-party"
+
+assertions:
+  - id: npc-canon-fetched
+    kind: behavioral
+    description: >
+      Player mentions Lyra by name in T1. The model must engage the
+      vault — either via vault_grep (which now auto-inlines the sheet
+      when the hits point at a single NPC file) OR via direct
+      vault_read_file (when the path is obvious from the vault map).
+      The failure mode is "no tool call at all" — the model hallucinated
+      Lyra from training distribution priors, which was the production
+      bug that started this whole investigation.
+    rule: any_of_tools_called
+    tools: [vault_grep, vault_read_file]
+
+  - id: inline-state-directive-emitted
+    kind: behavioral
+    description: >
+      [state: lyra mood=...; goal=...; mask=...] directive must appear in
+      at least 2 of 3 assistant turns. eval_llm does not strip inline
+      brackets, so the raw assistant content carries them.
+    rule: assistant_text_matches_min_turns
+    pattern: '\[state:\s*lyra\b'
+    min_turns: 2
+
+  - id: no-body-mod-anchor-leak
+    kind: deterministic
+    description: >
+      The persona example used to seed "two fingers missing / blood-stained
+      cloak / scar on the neck" — and Qwen3-14B cribbed it verbatim as Lyra's
+      canon. After the example rewrite + sampler retune, these phrases must
+      not appear in narration at all.
+    rule: no_assistant_text_matches
+    pattern: '(two fingers|missing fingers?|scar on (her|his) neck|blood[- ]stained cloak)'

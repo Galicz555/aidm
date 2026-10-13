@@ -1,0 +1,191 @@
+# English tool-call bench fixtures for `scripts/bench_tool_calls.py` — the
+# default set (`--lang en`, or AIDM_LOCALE=en). Same contract as
+# `tool_calls.yaml` (the historical hu/en mix, `--lang hu`).
+#
+# Every case of `tool_calls.yaml` translated faithfully: same expected tool,
+# same arg field, and the arg regex extended to the English term (the
+# Hungarian alternative is kept — the vault's proper nouns are Hungarian).
+# A Hungarian case whose translation is an existing English case appears
+# once (`from:` names both), so no utterance is double-weighted.
+# Seed campaign names: Vasfátyol Fellegvár = Iron Veil Citadel,
+# Szürke Erdő = Grey Forest.
+
+cases:
+  # --- Information lookup: vault_grep on NPC names ---
+  - name: en_npc_elara
+    from: hu_npc_elara, en_npc_elara
+    locale: en
+    user: "What do you know about Elara?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "elara"
+
+  - name: en_npc_balor
+    from: hu_npc_balor
+    locale: en
+    user: "Who is Balor?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "balor"
+
+  # --- Information lookup: vault_grep on locations ---
+  - name: en_loc_iron_veil
+    from: hu_loc_vasfatyol, en_loc_iron_veil
+    locale: en
+    user: "Tell me about the Iron Veil Citadel."
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "iron|vasf"
+
+  - name: en_loc_grey_forest
+    from: hu_loc_szurke
+    locale: en
+    user: "What dangers lurk in the Grey Forest?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "grey|sz(ü|u)rke"
+
+  # --- Information lookup: world/lore facts ---
+  - name: en_lore_war
+    from: hu_lore_war
+    locale: en
+    user: "What happened during the war?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "war|h(á|a)bor(ú|u)"
+
+  - name: en_lore_wolves
+    from: hu_lore_wolves
+    locale: en
+    user: "Where did the wolves come from?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "wol(f|v)|farkas"
+
+  - name: en_lore_mages
+    from: hu_lore_mages
+    locale: en
+    user: "What orders of mages are there in this world?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "mag(e|i)|order|m(á|a)g(u|i)s|rend"
+
+  # --- Numeric-detail lookup that must hit vault_grep ---
+  - name: en_population
+    from: hu_population
+    locale: en
+    user: "How many people live in the Iron Veil Citadel?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "population|inhabit|iron|lakos|n(é|e)pess(é|e)g|vasf"
+
+  # --- Directory exploration at session start ---
+  - name: en_session_start
+    from: hu_session_start, en_session_start
+    locale: en
+    user: "Let's start. What's in the vault?"
+    expected_tool: vault_list_dir
+    arg_field: path
+    arg_regex: "^(\\.|sessions|campaigns)$"
+
+  # --- File-name glob ---
+  - name: en_glob_characters
+    from: hu_glob_characters
+    locale: en
+    user: "What character sheets exist? List the files."
+    expected_tool: vault_glob
+    arg_field: pattern
+    arg_regex: "characters"
+
+  # --- Scene change → lookup of the new location ---
+  - name: en_scene_change
+    from: hu_scene_change
+    locale: en
+    user: "I enter the Iron Veil Citadel through the gate."
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "iron|vasf"
+
+  - name: en_scene_change_explicit
+    from: en_scene_change_explicit
+    locale: en
+    user: "I step into the Grey Forest, looking around."
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: "(grey|sz(ü|u)rke).*erd(ő|o)|grey forest"
+
+  # --- Character state changes → vault_update_character ---
+  - name: en_char_wounded
+    from: hu_char_wounded
+    locale: en
+    user: "My character, Thaddeus, was wounded in the arm by a wolf. Note it down."
+    expected_tool: vault_update_character
+    arg_field: slug
+    arg_regex: "thad"
+
+  - name: en_char_oath
+    from: en_char_oath
+    locale: en
+    user: "My character Thaddeus swears an oath to protect Elara. Record it on his sheet."
+    expected_tool: vault_update_character
+    arg_field: slug
+    arg_regex: "thad"
+
+  # --- Session log on end-of-session ---
+  - name: en_end_session
+    from: hu_end_session, en_end_session
+    locale: en
+    user: "Thanks, that's enough for today. We're done."
+    expected_tool: vault_write_session_log
+
+  # --- Hard cases: ambiguous, requires choice of vault_grep ---
+  - name: en_ambig_culture
+    from: hu_ambig_culture
+    locale: en
+    user: "What customs do the locals have up here in the north?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: ".+"
+
+  - name: en_ambig_history
+    from: hu_ambig_history
+    locale: en
+    user: "What's the history behind this region?"
+    expected_tool: vault_grep
+    arg_field: pattern
+    arg_regex: ".+"
+
+  # --- Player-character introduction → vault_set_character ---
+  - name: en_pick_character
+    from: hu_pick_character, en_pick_character
+    locale: en
+    user: "I'll be playing Thaddeus the Wanderer. Set him as the active character."
+    expected_tool: vault_set_character
+    arg_field: slug
+    arg_regex: "thad"
+
+  # --- File read after the grep result is implied ---
+  - name: en_read_elara
+    from: hu_read_explicit
+    locale: en
+    user: "Read the elara.md file and tell me what's in it."
+    expected_tool: vault_read_file
+    arg_field: path
+    arg_regex: "elara"
+
+  - name: en_read_explicit
+    from: en_read_explicit
+    locale: en
+    user: "Read the file at npcs/balor.md and tell me what's in it."
+    expected_tool: vault_read_file
+    arg_field: path
+    arg_regex: "balor"
+
+  # --- Session-start continuity check ---
+  - name: en_check_last_session
+    from: hu_check_last_session, en_check_last_session
+    locale: en
+    user: "Where did we leave off last time?"
+    expected_tool: vault_list_dir
+    arg_field: path
+    arg_regex: "session"

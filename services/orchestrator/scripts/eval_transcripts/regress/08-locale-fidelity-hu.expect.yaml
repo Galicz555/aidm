@@ -1,0 +1,41 @@
+scenario:
+  id: locale-fidelity-hu
+  category: regress
+  fix_ref: >
+    Live 14:45 run wrote an HU session_log for an EN session because the
+    model followed campaign.md's lang field instead of the player's
+    actual session locale. The schema description was hardened to say
+    "match the player's language" — this test runs the symmetric case:
+    an HU session, the log must be HU.
+  replays: 5
+  pass_threshold: 0.8
+
+runner:
+  inject_dir: "fixtures"
+  inject_into: "runs/first-party"
+
+assertions:
+  - id: npc-canon-fetched
+    kind: behavioral
+    rule: any_of_tools_called
+    tools: [vault_grep, vault_read_file]
+
+  - id: inline-state-directive-emitted
+    kind: behavioral
+    rule: assistant_text_matches_min_turns
+    pattern: '\[state:\s*lyra\b'
+    min_turns: 2
+
+  - id: narration-in-hungarian
+    kind: deterministic
+    description: >
+      The DM's prose must be in HU on every turn — common HU function
+      word "és" (and) appears in virtually every Hungarian sentence and
+      effectively never in pure English text. Asserts the model honored
+      the player's session locale rather than defaulting to the
+      campaign's lang setting or to English. Session-log writing is
+      tested elsewhere — this scenario stays narrative-only because the
+      bench eval loop doesn't flip the end-session tool subset.
+    rule: assistant_text_matches_min_turns
+    pattern: "( és |Lyra|jelenet|raktár|szemed)"
+    min_turns: 3

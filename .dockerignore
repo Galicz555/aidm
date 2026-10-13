@@ -1,0 +1,54 @@
+# Without this file docker tars the entire project on every build,
+# including the 41 GB ./models tree and the venvs — the daemon spends
+# minutes "sending build context" even when only entrypoint.sh changed.
+# Everything below is content that no Dockerfile in this repo COPYs in.
+
+# Local Python virtualenvs
+.venv/
+**/.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node + SvelteKit
+node_modules/
+**/node_modules/
+.svelte-kit/
+**/.svelte-kit/
+build/
+dist/
+
+# Model weights and audio (bind-mounted at runtime, not baked in)
+models/
+voices/
+recordings/
+
+# Vault content (bind-mounted into orchestrator at runtime)
+vault/
+
+# Phase 7 docs / non-build artifacts
+docs/
+PLAN.md
+README.md
+*.log
+.coverage
+htmlcov/
+
+# IDE + OS noise
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# Secrets / local config (also gitignored)
+.env
+.env.*
+!.env.example
+
+# Git itself
+.git/
+.gitignore

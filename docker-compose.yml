@@ -1,0 +1,258 @@
+# AIDM service composition.
+#
+# Two profiles, one stack:
+#
+# * profile: public — Phase 5/6 default. Single orchestrator container
+#   talks to cloud providers (Groq/OpenRouter/ElevenLabs). Network is
+#   the default bridge. Today the local dev loop still uses
+#   `uv run aidm` because the container's voice loop needs host audio,
+#   but the container path is kept current for CI and WebRTC deploys.
+#
+# * profile: private — Phase 7. Three sibling GPU containers
+#   (Faster-Whisper STT, llama.cpp + Qwen3-14B LLM,
+#   MOSS-TTS-Nano TTS) plus the orchestrator. The whole profile rides on an `internal:
+#   true` Docker network so the orchestrator has *no* outbound
+#   internet egress — accidental cloud calls fail loudly instead of
+#   regressing privacy guarantees. `make up-private` brings it all up.
+#
+# Bring up: `make up` (public) or `make up-private` (private).
+
+networks:
+  default:
+    name: aidm_default
+  private-net:
+    name: aidm_private-net
+    internal: true   # blocks all outbound internet from member services
+  # Non-internal bridge used only by services that need a published host
+  # port (currently just llm-gateway, for `make bench-tools` and the
+  # host-side text/voice dev loops). Containers attached *only* to an
+  # internal network do not get iptables DNAT rules — Docker treats
+  # internal as "do not publish". Attaching this network as a second
+  # interface restores host port publishing while keeping the model
+  # services egress-blocked through private-net.
+  private-host:
+    name: aidm_private-host
+
+services:
+  # -------------------------- public profile --------------------------
+  orchestrator:
+    profiles: ["public"]
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+    image: aidm-orchestrator:dev
+    environment:
+      - AIDM_MODE=public
+      - AIDM_TRANSPORT=${AIDM_TRANSPORT:-webrtc}
+      - AIDM_LOCALE=${AIDM_LOCALE:-hu}
+      - AIDM_LOG_LEVEL=${AIDM_LOG_LEVEL:-INFO}
+      - STT_PROVIDER=${STT_PROVIDER:-elevenlabs}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-anthropic/claude-sonnet-4.5}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - ELEVENLABS_VOICE_ID=${ELEVENLABS_VOICE_ID:-pNInz6obpgDQGcFmaJgB}
+      - ELEVENLABS_VOICE_ID_HU=${ELEVENLABS_VOICE_ID_HU:-}
+      - ELEVENLABS_VOICE_ID_EN=${ELEVENLABS_VOICE_ID_EN:-}
+      - ELEVENLABS_MODEL=${ELEVENLABS_MODEL:-eleven_multilingual_v2}
+      - ELEVENLABS_TTS_TRANSPORT=${ELEVENLABS_TTS_TRANSPORT:-ws}
+      - VAULT_PATH=/vault/${AIDM_CAMPAIGN_SLUG:-ember-hollow}
+    volumes:
+      # RW so the LLM's character-sheet writes and the PUT /api/vault
+      # endpoint behave the same here as in prod (docker-compose.prod.yml
+      # uses /srv/aidm-vault RW). Mounting :ro here would cause 500s on
+      # writes that succeed in prod — silent profile drift.
+      - ./vault:/vault
+
+  # -------------------------- private profile -------------------------
+  orchestrator-private:
+    profiles: ["private"]
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+    image: aidm-orchestrator:dev
+    environment:
+      - AIDM_MODE=private
+      - AIDM_TRANSPORT=${AIDM_TRANSPORT:-webrtc}
+      - AIDM_LOCALE=${AIDM_LOCALE:-hu}
+      - AIDM_LOG_LEVEL=${AIDM_LOG_LEVEL:-INFO}
+      - AIDM_LOCAL_LLM_URL=http://llm-gateway:8002/v1
+      - AIDM_LOCAL_LLM_MODEL=${AIDM_LOCAL_LLM_MODEL:-qwen3-14b}
+      - AIDM_LOCAL_STT_URL=http://stt:8001
+      - AIDM_LOCAL_TTS_URL=ws://tts:8003/v1/tts/stream
+      - AIDM_LOCAL_TTS_SPEAKER=/voices/dm_hu.wav
+      - VAULT_PATH=/vault/${AIDM_CAMPAIGN_SLUG:-ember-hollow}
+    volumes:
+      # RW: see comment on the public profile above.
+      - ./vault:/vault
+      - ./voices:/voices:ro
+    networks:
+      - private-net
+    depends_on:
+      stt:
+        condition: service_healthy
+      llm-gateway:
+        condition: service_healthy
+      tts:
+        condition: service_healthy
+
+  stt:
+    profiles: ["private"]
+    build:
+      context: .
+      dockerfile: services/stt/Dockerfile
+    image: aidm-stt:dev
+    environment:
+      # /models is the volume mount root and contains the pre-fetched
+      # CT2 model files (config.json, model.bin, tokenizer.json, ...).
+      # faster-whisper accepts a path here and skips HuggingFace download
+      # entirely — required, because private-net has no egress.
+      - WHISPER_MODEL=${WHISPER_MODEL:-/models}
+      - WHISPER_DEVICE=${WHISPER_DEVICE:-cuda}
+      # float16 by default. int8_float16 was the original (smaller VRAM,
+      # faster on Ampere/Ada) but the kernel hits CUBLAS_STATUS_NOT_SUPPORTED
+      # on Blackwell (sm_120) with this CUDA 12.4 base. Bump the base to
+      # CUDA 12.8+ to revisit int8_float16. The VRAM delta is ~750 MB on
+      # Whisper Turbo — acceptable next to the LLM's ~10 GB.
+      - WHISPER_COMPUTE_TYPE=${WHISPER_COMPUTE_TYPE:-float16}
+      - WHISPER_DOWNLOAD_ROOT=/models
+      # Force offline so any accidental name (vs path) override fails
+      # fast with a clear local-files-missing error instead of hanging on
+      # DNS resolution.
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
+    volumes:
+      - ./models/whisper:/models
+    networks:
+      - private-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  llm-gateway:
+    profiles: ["private"]
+    build:
+      context: .
+      dockerfile: services/llm-gateway/Dockerfile
+    image: aidm-llm-gateway:dev
+    environment:
+      # Qwen/Qwen3-14B Q5_K_M (fetch under ./models/qwen3;
+      # see services/llm-gateway/entrypoint.sh header). Point
+      # AIDM_LLM_MODEL_PATH at the Qwen3-14B GGUF here for an A/B comparison.
+      - MODEL_PATH=${AIDM_LLM_MODEL_PATH:-/models/qwen3/Qwen3-14B-Q5_K_M.gguf}
+      - CTX_SIZE=${AIDM_LLM_CTX_SIZE:-16384}
+      - GPU_LAYERS=${AIDM_LLM_GPU_LAYERS:-99}
+      - KV_CACHE_TYPE=${AIDM_LLM_KV_CACHE_TYPE:-q8_0}
+      - CACHE_TYPE_K=${AIDM_LLM_CACHE_TYPE_K:-}
+      - CACHE_TYPE_V=${AIDM_LLM_CACHE_TYPE_V:-}
+      - MLOCK=${AIDM_LLM_MLOCK:-1}
+      - NO_MMAP=${AIDM_LLM_NO_MMAP:-1}
+      - N_CPU_MOE=${AIDM_LLM_N_CPU_MOE:-0}
+      - PARALLEL=${AIDM_LLM_PARALLEL:-1}
+      # Free-form llama-server flags (entrypoint appends verbatim) — e.g.
+      # "--ubatch-size 256" to shrink compute buffers for tight-VRAM
+      # candidate models.
+      - EXTRA_FLAGS=${AIDM_LLM_EXTRA_FLAGS:-}
+      # 0 = disable CUDA graphs (sm_120 hang workaround, see entrypoint.sh).
+      - CUDA_GRAPHS=${AIDM_LLM_CUDA_GRAPHS:-1}
+      - REPEAT_PENALTY=${AIDM_LLM_REPEAT_PENALTY:-1.15}
+      - TOP_K=${AIDM_LLM_TOP_K:-40}
+      - REASONING_BUDGET=${AIDM_LLM_REASONING_BUDGET:-0}
+      - CHAT_TEMPLATE_KWARGS=${AIDM_LLM_CHAT_TEMPLATE_KWARGS:-}
+      - DRY_MULTIPLIER=${AIDM_LLM_DRY_MULTIPLIER:-0.0}
+      - DRY_BASE=${AIDM_LLM_DRY_BASE:-1.75}
+      - DRY_ALLOWED_LENGTH=${AIDM_LLM_DRY_ALLOWED_LENGTH:-2}
+      - DRY_PENALTY_LAST_N=${AIDM_LLM_DRY_PENALTY_LAST_N:-2048}
+      - CACHE_REUSE=${AIDM_LLM_CACHE_REUSE:-256}
+      - DRAFT_MODEL_PATH=${AIDM_LLM_DRAFT_MODEL_PATH:-}
+      - DRAFT_GPU_LAYERS=${AIDM_LLM_DRAFT_GPU_LAYERS:-99}
+    # IPC_LOCK lets llama-server call mlock() on the model weights;
+    # without it --mlock silently no-ops inside the container.
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      # Mount the whole models tree so candidates/ siblings are reachable
+      # alongside the production gemma/ subdir (used by bench_models.sh).
+      - ./models:/models
+      # Bind-mount the entrypoint so iterating on llama-server flags
+      # is a `docker compose restart llm-gateway` (3 seconds), not a
+      # `--build` (7 minutes). The Dockerfile still COPYs a copy in
+      # for the first-boot path; the bind-mount just overrides it.
+      - ./services/llm-gateway/entrypoint.sh:/entrypoint.sh:ro
+      # Chat-template overrides for candidate models whose embedded
+      # template rejects the orchestrator's message shape (mid-turn
+      # system messages). Reference via
+      # EXTRA_FLAGS="--chat-template-file /templates/<name>.jinja".
+      - ./services/llm-gateway/templates:/templates:ro
+    networks:
+      - private-net
+      - private-host
+    # Loopback-only publish so `make bench-tools` (running on the host)
+    # can hit llama-server before the orchestrator container is wired up.
+    # The internal network still blocks egress for the container itself;
+    # this only exposes the port to 127.0.0.1.
+    ports:
+      - "127.0.0.1:8002:8002"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Eval-only player simulator for `loop_sim.py --sim-model local`: CPU-only
+  # llama-server (reuses the gateway image; no GPU reservation, so the DM keeps
+  # the card). Gemma 3 4B — a different family from the Qwen DM, avoiding
+  # self-play; ~15 s/turn on a 6-core Zen 4. Fetch the GGUF with:
+  #   hf download bartowski/google_gemma-3-4b-it-GGUF \
+  #     google_gemma-3-4b-it-Q4_K_M.gguf --local-dir models/sim
+  sim-llm:
+    profiles: ["eval"]
+    image: aidm-llm-gateway:dev
+    entrypoint: ["/app/llama-server"]
+    # llama-server rejects `--flag=value`; keep flag and value as separate items.
+    command:
+      [
+        "--model", "/models/${AIDM_SIM_LLM_GGUF:-google_gemma-3-4b-it-Q4_K_M.gguf}",
+        "--alias", "sim",
+        "--host", "0.0.0.0",
+        "--port", "8004",
+        "--ctx-size", "8192",
+        "--threads", "${AIDM_SIM_LLM_THREADS:-6}",
+        "--parallel", "1",
+        "--n-gpu-layers", "0",
+        # llama.cpp keeps an 8 GiB host prompt cache by default; the sim's
+        # single slot and sliding prompt gain nothing from it (it grew to 11.7 GB).
+        "--cache-ram", "0",
+        "--jinja",
+      ]
+    volumes:
+      - ./models/sim:/models:ro
+    ports:
+      - "127.0.0.1:8004:8004"
+
+  tts:
+    profiles: ["private"]
+    build:
+      context: .
+      dockerfile: services/tts/Dockerfile
+    image: aidm-tts:dev
+    # CPU-only by design — see services/tts/README.md "Why CPU".
+    # 0.1B params run comfortably realtime on a 4-core CPU, and keeping
+    # this off the GPU frees the full 16 GB VRAM for the LLM + Whisper.
+    environment:
+      - MOSS_TTS_CHECKPOINT=/models/moss-tts
+      - MOSS_TTS_AUDIO_TOKENIZER=/models/moss-audio-tokenizer
+      - MOSS_TTS_DEVICE=${MOSS_TTS_DEVICE:-cpu}
+      - MOSS_TTS_DEFAULT_SPEAKER_WAV=/voices/dm_hu.wav
+    volumes:
+      - ./models/moss-tts:/models/moss-tts:ro
+      - ./models/moss-audio-tokenizer:/models/moss-audio-tokenizer:ro
+      - ./voices:/voices:ro
+    networks:
+      - private-net

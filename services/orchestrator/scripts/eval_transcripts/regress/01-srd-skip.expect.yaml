@@ -1,0 +1,16 @@
+scenario:
+  id: srd-skip
+  category: regress
+  fix_ref: "vault.grep skips rules/srd/ subdirs by default"
+  replays: 10
+  pass_threshold: 0.7
+
+assertions:
+  - id: grep-results-no-srd
+    kind: deterministic
+    description: >
+      Every vault_grep call's result must not contain any path starting with
+      'rules/srd/'. The SRD-skip change in Vault.grep enforces this at the
+      data layer; this assertion confirms the model never sees SRD noise.
+    rule: no_grep_result_path_prefix
+    prefix: "rules/srd/"

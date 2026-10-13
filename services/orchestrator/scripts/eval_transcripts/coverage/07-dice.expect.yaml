@@ -1,0 +1,54 @@
+scenario:
+  id: dice-marker-interpretation
+  category: coverage
+  fix_ref: >
+    Coverage probe: the persona's d20 interpretation table maps roll
+    totals to outcome bands (1 crit-fail, 2-9 fail, 10-14 partial,
+    15-19 success, 20 crit). The three turns target three bands —
+    partial (13), critical-success (22 incl. nat 20 base+5), and
+    crit-fail (3 from a nat 1). The DM must NOT invent its own number
+    and must narrate consequences appropriate to each band.
+  replays: 10
+  pass_threshold: 0.6
+
+assertions:
+  - id: partial-success-acknowledged
+    kind: behavioral
+    description: >
+      Turn 1 (13 = partial success) should narrate the lock-picking as
+      a "yes, but" — picks open, but with a complication (noise, broken
+      pick, attracted attention). Heuristic: the assistant text should
+      contain at least one "but" / "however" / "with" / "though" /
+      complication-signal AND not contain pure refusal phrases.
+    rule: first_assistant_mentions_any
+    turn: 1
+    needles: ["but", "however", "though", "with a", "complication"]
+
+  - id: crit-success-rewarded
+    kind: behavioral
+    description: >
+      Turn 2 (22 = critical success on a 17+5 roll, well past 20-band)
+      should narrate the guard convinced cleanly, with momentum. The
+      narrative should contain success language without complication.
+    rule: first_assistant_mentions_any
+    turn: 2
+    needles: ["nods", "waves you through", "doesn't question", "lets you", "passes"]
+
+  - id: crit-fail-has-consequence
+    kind: behavioral
+    description: >
+      Turn 3 (3 = critical fail on a nat 1 base) should narrate a real
+      dramatic consequence — caught, exposed, weapon dropped, etc.
+      Should NOT narrate clean success.
+    rule: first_assistant_mentions_any
+    turn: 3
+    needles: ["caught", "stumbles", "drops", "spotted", "alarm", "wrong", "loud"]
+
+  - id: dm-does-not-invent-its-own-roll
+    kind: deterministic
+    description: >
+      The DM must NOT emit "[ROLL d" markers itself — those are
+      player-side only per the persona. Any DM-generated ROLL marker
+      means the persona's deterministic-result rule broke.
+    rule: no_assistant_text_matches
+    pattern: "\\[\\s*ROLL\\s+d\\d"

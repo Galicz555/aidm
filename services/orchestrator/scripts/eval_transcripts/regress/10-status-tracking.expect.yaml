@@ -1,0 +1,80 @@
+scenario:
+  id: status-tracking
+  category: regress
+  fix_ref: >
+    NPC status discipline: the sheet's `status` field (active|wounded|dead|
+    missing) is canonical and must be updated via vault_update_npc when the
+    scene-level state of the NPC changes. Live failure mode would be: NPC
+    gets stabbed and dies, but the sheet stays at `status: active` forever,
+    so the next session resumes with a corpse standing up.
+
+    Scenario arc (6 turns): meet Lyra → raiders attack → Lyra wounded →
+    Lyra killed → cleanup. The model is expected to:
+      1. Update sheet to status: wounded after the slash (T2-T3 window)
+      2. Update sheet to status: deceased + call npc_scene_exit after she
+         dies (T5-T6 window)
+      3. Keep inline state directives flowing — mood/goal/mask should track
+         the trauma arc (curious → frightened → dying → still)
+  replays: 5
+  pass_threshold: 0.6
+
+runner:
+  inject_dir: "fixtures"
+  inject_into: "runs/first-party"
+
+assertions:
+  - id: npc-canon-fetched
+    kind: behavioral
+    description: >
+      Sanity floor — same as 06/07: vault engagement on T1.
+    rule: any_of_tools_called
+    tools: [vault_grep, vault_read_file]
+
+  - id: wounded-status-written
+    kind: behavioral
+    description: >
+      After Lyra is slashed (T2), the model should call vault_update_npc
+      with `status: wounded` in the content. Catches the failure where the
+      model narrates the injury but never canonicalizes it to the sheet.
+      Behavioral with low threshold — the 14B baseline often skips
+      vault_update_npc; this scenario will likely expose model differences
+      sharply.
+    rule: tool_called_with_arg_substring
+    tool: vault_update_npc
+    arg_name: content
+    needle: "status: wounded"
+
+  - id: deceased-status-written
+    kind: behavioral
+    description: >
+      After Lyra dies (T5), the model MUST call vault_update_npc with
+      `status: deceased` so the next session doesn't resurrect her. This
+      is the hard-narration-rules promise in the persona; if the model
+      narrates her death but skips the sheet update, continuity is broken.
+    rule: tool_called_with_arg_substring
+    tool: vault_update_npc
+    arg_name: content
+    needle: "status: deceased"
+
+  - id: scene-exit-on-death
+    kind: behavioral
+    description: >
+      The persona spec says: NPC death = npc_scene_exit FIRST, then
+      vault_update_npc with status: deceased. This assertion checks the
+      exit call landed at all; pairing/ordering can be a follow-up
+      scenario if both signal-and-write are passing individually.
+    rule: tool_called_with_arg_substring
+    tool: npc_scene_exit
+    arg_name: slug
+    needle: lyra
+
+  - id: state-directive-tracks-trauma
+    kind: behavioral
+    description: >
+      Across the 6 turns, Lyra's mood must take at least 3 distinct values.
+      The arc spans curious → wounded → dying — if mood stays "guarded" the
+      whole way, the model is not honoring the scene shift.
+    rule: state_directive_values_evolve
+    slug: lyra
+    key: mood
+    min_distinct: 3

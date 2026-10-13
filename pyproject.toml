@@ -1,0 +1,77 @@
+[project]
+name = "aidm"
+version = "0.0.0"
+description = "Voice-first AI Dungeon Master"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = { text = "Proprietary" }
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    # Used by scripts/bench_tool_calls.py to load fixtures. Out of the
+    # voice-loop dependency chain on purpose — the bench is a dev-only
+    # gate, not a runtime concern.
+    "pyyaml>=6.0",
+    # Closed-loop harness + judge (scripts/loop_sim.py, scripts/judge_run.py).
+    # Cloud test infrastructure only — never imported from aidm/ runtime.
+    "anthropic>=0.40",
+    "httpx>=0.27",
+]
+
+[tool.uv.workspace]
+members = ["services/orchestrator"]
+
+[tool.uv.sources]
+aidm-orchestrator = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# Local-model services live under services/{stt,llm-gateway,tts} with
+# their own pyproject + Python version (XTTS still pins 3.10). They're
+# linted in their own containers if at all, not by the orchestrator's
+# toolchain.
+extend-exclude = [
+    "vault",
+    ".venv",
+    "build",
+    "scripts",
+    "services/stt",
+    "services/llm-gateway",
+    "services/tts",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PL", "TID"]
+ignore = [
+    "E501",   # line length handled by the formatter
+    "PLR2004", # magic value comparisons are fine in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLR2004", "S101"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_redundant_casts = true
+exclude = ["vault/", "build/", ".venv/"]
+files = ["tests", "services/orchestrator/aidm"]
+
+[[tool.mypy.overrides]]
+module = ["pipecat.*", "loguru.*", "pyaudio"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "services/orchestrator/tests"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers --strict-config"

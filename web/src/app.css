@@ -1,0 +1,194 @@
+/* Central stylesheet — Tailwind v4 + shadcn-svelte theme tokens.
+ *
+ * Single source of truth for the design system. Two layers:
+ *
+ *   1. ``:root`` + ``.dark`` — raw CSS variables, swapped by a class
+ *      on <html> (mode-watcher in +layout.svelte). Light tokens are
+ *      placeholder; we ship dark only today.
+ *   2. ``@theme inline`` — declares the Tailwind token registry. The
+ *      ``inline`` form references the raw variables above, so flipping
+ *      the class cascades through every utility (``bg-primary``,
+ *      ``text-foreground``, ``border-input``) without a rebuild.
+ *
+ * Semantic intent — comments call out the *role* of each token, not its
+ * shade. Re-tinting starts here: edit the hex in :root or .dark once,
+ * every component follows.
+ */
+
+@import "tailwindcss";
+
+/* Self-hosted UI font. ``@fontsource/inter`` ships the variable build by
+ * default — no Google Fonts CDN, no FOUT on first paint. JetBrains Mono
+ * keeps the transcript / persona-variant labels in monospace, which is
+ * already the established AIDM language for "system" text. */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+/* mode-watcher writes the active mode as a class on <html>; this custom
+ * variant lets components opt into dark-only utilities via ``dark:`` if
+ * they really need to override the cascade. The class-based form (rather
+ * than ``prefers-color-scheme``) is what makes a future settings-page
+ * toggle a one-line change. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  /* Light theme — placeholder; ships unused while we're dark-only, but
+   * structuring it now means the eventual mode-watcher swap is a class
+   * toggle, not a stylesheet rewrite. Intentionally bright-but-warm so a
+   * future light theme keeps the candlelight DM-mood. */
+  :root {
+    color-scheme: dark light;
+
+    /* Surfaces — page < card < popover stacking order. */
+    --background: #f5f1e8;
+    --foreground: #1a1d27;
+    --card: #ffffff;
+    --card-foreground: #1a1d27;
+    --popover: #ffffff;
+    --popover-foreground: #1a1d27;
+
+    /* Primary — DM-is-listening / focus cue. Warm gold reads as
+     * candlelight, parchment, lantern. NOT cool-SaaS blue. */
+    --primary: #8a6a32;
+    --primary-foreground: #f5f1e8;
+
+    /* Secondary surfaces — quiet panels, ghost buttons. */
+    --secondary: #e6dfd0;
+    --secondary-foreground: #1a1d27;
+    --muted: #e6dfd0;
+    --muted-foreground: #6a6557;
+    --accent: #e6dfd0;
+    --accent-foreground: #1a1d27;
+
+    /* Destructive — dried blood, not Bootstrap-red. Spoken errors stay
+     * voice-side; this is for visual toasts and form validation. */
+    --destructive: #8b3a3a;
+    --destructive-foreground: #f5f1e8;
+
+    /* Borders + form controls. */
+    --border: #d9d2c2;
+    --input: #d9d2c2;
+    --ring: #8a6a32;
+
+    /* Atmospheric — italicized scene narration. Distinct tone from UI
+     * chrome so DM prose reads as prose, not as label text. */
+    --ink: #4a4639;
+
+    /* Layout radii. ``--radius`` is the shadcn base; ``--radius-pill``
+     * preserves the existing AIDM status-pill aesthetic (the chips, the
+     * dot, the Start button — all 9999 in the hand-rolled CSS). */
+    --radius: 0.625rem;
+    --radius-pill: 9999px;
+  }
+
+  /* Dark theme — what AIDM actually ships today. Atmospheric dark
+   * fantasy: neutral charcoals (NOT sepia-grimdark, ages poorly), warm
+   * gold accent (candlelight cue), dried-blood destructive. The
+   * restraint is the point — atmosphere comes from accents + type,
+   * not from tinting every surface brown. */
+  .dark {
+    color-scheme: dark;
+
+    --background: #11131a;
+    --foreground: #e6e8ef;
+    --card: #1a1d27;
+    --card-foreground: #e6e8ef;
+    --popover: #1a1d27;
+    --popover-foreground: #e6e8ef;
+
+    --primary: #c9a96e;
+    --primary-foreground: #11131a;
+
+    --secondary: #2a2f3d;
+    --secondary-foreground: #e6e8ef;
+    --muted: #2a2f3d;
+    --muted-foreground: #8b91a3;
+    --accent: #2a2f3d;
+    --accent-foreground: #e6e8ef;
+
+    --destructive: #c85a5a;
+    --destructive-foreground: #11131a;
+
+    --border: #2a2f3d;
+    --input: #2a2f3d;
+    --ring: #c9a96e;
+
+    --ink: #b4a989;
+  }
+
+  /* Legacy aliases — the un-migrated pages still read these. Drop once
+   * /+page.svelte and /text/+page.svelte are fully on shadcn. */
+  :root,
+  .dark {
+    --bg: var(--background);
+    --fg: var(--foreground);
+    --panel: var(--card);
+    --accent-hot: var(--destructive);
+  }
+
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+
+  /* Honest focus ring across every interactive surface — shadcn's
+   * per-component ring styles are inconsistent; this overrides them
+   * uniformly so the keyboard-only path stays predictable. */
+  *:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Respect player preference — Pipecat barge-in already creates motion
+   * the user can't choose to dampen. Dialog / Sheet / Tooltip
+   * animations are decorative; kill them at source. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Tailwind token registry. ``inline`` form pulls from the raw CSS vars
+ * above so the .dark class cascade flips every utility automatically. */
+@theme inline {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ink: var(--ink);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-pill: var(--radius-pill);
+}

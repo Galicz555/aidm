@@ -1,0 +1,48 @@
+scenario:
+  id: resume-no-relist
+  category: regress
+  fix_ref: >
+    Resume wrapper text + persona Continuity sections updated to forbid
+    vault_list_dir('sessions') and log re-read when resume body is already
+    in context (session_resume.py:_wrap_for_context + dm.{en,hu}{,.private}.md)
+  replays: 10
+  pass_threshold: 0.7
+
+# Override eval_llm CLI args for this scenario. The runner copies fixtures/*
+# into the sandbox vault before replay, then passes --resume to eval_llm.
+runner:
+  inject_dir: "fixtures"  # relative to the scenario file
+  inject_into: "runs/first-party"  # subdir of the sandbox campaign root
+  resume: "log:2026-06-20-200000"
+
+assertions:
+  - id: no-sessions-list-on-opening
+    kind: deterministic
+    description: >
+      With a resume body already injected, the DM must NOT call
+      vault_list_dir('sessions') in the opening turns — the resume directive
+      explicitly forbids re-listing.
+    rule: tool_not_called_with_arg
+    tool: vault_list_dir
+    arg_name: path
+    arg_value_matches: "sessions"
+
+  - id: no-session-log-reread
+    kind: deterministic
+    description: >
+      Likewise, the DM must NOT re-read the loaded session log via
+      vault_read_file. The body is already in the context.
+    rule: tool_not_called_with_arg
+    tool: vault_read_file
+    arg_name: path
+    arg_value_matches_regex: "^sessions/"
+
+  - id: opening-references-loaded-canon
+    kind: behavioral
+    description: >
+      The opening assistant turn should reference at least one named entity
+      from the resume body (Lyra, Kael, or Pharmacia Lux) — proves the model
+      anchored to the loaded continuity rather than fabricating a fresh open.
+    rule: first_assistant_mentions_any
+    turn: 1
+    needles: ["Lyra", "Kael", "Pharmacia Lux", "Old District", "the collectors"]

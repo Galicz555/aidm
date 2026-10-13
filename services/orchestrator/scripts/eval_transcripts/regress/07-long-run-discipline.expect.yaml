@@ -1,0 +1,98 @@
+scenario:
+  id: long-run-discipline
+  category: regress
+  fix_ref: >
+    Long-run session test (12 turns) covering the regressions surfaced by
+    the 2026-06-26 14:45 live run: [state:] directive stops being emitted
+    past turn 3-4, prose mode-collapses into a recycled katechism
+    ("shelter hums around you", "for the first time she doesn't look
+    away"), model ignores player world-state overrides ("there is no
+    explosion"), and breaks into assistant voice when complained-at.
+  replays: 5
+  pass_threshold: 0.6
+
+runner:
+  inject_dir: "fixtures"
+  inject_into: "runs/first-party"
+
+assertions:
+  - id: inline-state-emitted-on-most-turns
+    kind: behavioral
+    description: >
+      [state: lyra ...] directive must appear in at least 8 of 12 assistant
+      turns. The compact-spec persona drifted to 0/20 on the live run;
+      restoring the MANDATORY mandate should push back to 70%+.
+    rule: assistant_text_matches_min_turns
+    pattern: '\[state:\s*lyra\b'
+    min_turns: 8
+
+  - id: no-recycled-katechism
+    kind: deterministic
+    description: >
+      The signature mode-collapse phrases from the live run must not
+      reappear. If any of these land in narration, the sampler stack
+      (rep_penalty 1.15 + top_k 40 + freq/presence) is not holding.
+    rule: no_assistant_text_matches
+    pattern: '(shelter hums around you|for the first time since she stumbled into your path)'
+
+  - id: honor-no-explosion-override
+    kind: deterministic
+    description: >
+      Player explicitly declared "no explosion / shelter is safe" at T7.
+      The DM must not narrate any explosion / breach / door-bursting in
+      subsequent turns. Production failure was "Somewhere above, a door
+      explodes" appearing 3+ turns after the override.
+    rule: no_assistant_text_matches
+    pattern: '(door explodes|warehouse collapses|something explodes|breach|burst inward)'
+
+  - id: no-assistant-voice-break
+    kind: deterministic
+    description: >
+      Even though this scenario doesn't trigger a player complaint, the
+      assistant-voice tells should never appear in narration. Catches
+      drift early.
+    rule: no_assistant_text_matches
+    pattern: "(I apologize|my intent was never|let me adjust|I'm here to)"
+
+  - id: npc-canon-fetched
+    kind: behavioral
+    description: >
+      Sanity floor: the model engaged the vault at T1. Same shape as 06.
+    rule: any_of_tools_called
+    tools: [vault_grep, vault_read_file]
+
+  - id: state-directive-has-all-three-keys
+    kind: behavioral
+    description: >
+      Degenerate emission would be e.g. [state: lyra m=guarded] alone —
+      the registry keeps stale goal/mask. At least 6 of the emitted
+      directives must include all three keys (m=, g=, k= — or the long
+      forms). Catches "directive emitted but half empty".
+    rule: state_directive_has_all_keys
+    slug: lyra
+    min_turns: 6
+
+  - id: lyra-mood-actually-evolves
+    kind: behavioral
+    description: >
+      Across the 12 turns Lyra's mood should take at least 4 distinct
+      values. Live failure mode: "paralyzed tension; calculate risk of
+      trust; clenched fists" emitted unchanged for 3+ turns running.
+      The directive is technically present but the NPC reads as a stuck
+      record — scene state frozen.
+    rule: state_directive_values_evolve
+    slug: lyra
+    key: mood
+    min_distinct: 4
+
+  - id: lyra-goal-actually-evolves
+    kind: behavioral
+    description: >
+      Same shape, on scene_goal. Mood can drift in tone while goal stays
+      pinned — but across a 12-turn arc (warehouse → car → shelter →
+      kitchen → week later) Lyra's scene_goal must shift at least 3
+      times to track narrative progress.
+    rule: state_directive_values_evolve
+    slug: lyra
+    key: goal
+    min_distinct: 3

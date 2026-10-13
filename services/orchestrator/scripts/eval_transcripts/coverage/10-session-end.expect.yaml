@@ -1,0 +1,44 @@
+scenario:
+  id: session-end-clean-goodbye
+  category: coverage
+  fix_ref: >
+    Coverage probe: the session-end discipline. When the player signals
+    end with "thanks / we're done" (the harness injects [END_SESSION]
+    on this turn which narrows the tool subset to vault_write_session_log
+    only), the DM must call vault_write_session_log with a meaningful
+    200-300 word summary before signing off.
+  replays: 10
+  pass_threshold: 0.6
+
+assertions:
+  - id: session-log-written
+    kind: deterministic
+    description: >
+      The forced tool subset on [END_SESSION] is exactly
+      vault_write_session_log; not calling it means the DM ignored the
+      hint entirely. This is the deterministic floor.
+    rule: min_tool_calls
+    tool: vault_write_session_log
+    min_calls: 1
+
+  - id: session-log-has-real-body
+    kind: behavioral
+    description: >
+      The session log content should be at least ~200 chars (a tight
+      paragraph). Anything shorter is likely a JSON truncation or a
+      hollow "we played a session" stub.
+    rule: tool_called_with_arg_min_length
+    tool: vault_write_session_log
+    arg_name: content
+    min_length: 200
+
+  - id: session-log-has-frontmatter
+    kind: behavioral
+    description: >
+      The persona instructs the model to emit YAML frontmatter at the
+      top of the log content. The frontmatter has type: session_log;
+      lacking it = the persona's session-log shape leaked.
+    rule: tool_called_with_arg_substring
+    tool: vault_write_session_log
+    arg_name: content
+    needle: "type: session_log"
