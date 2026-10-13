@@ -1,0 +1,14 @@
+# Closed-loop scenario: 10-turn mid (day 1 evening into day 2).
+scenario:
+  id: mid-10t
+  run_slug: eval
+  turns: 10
+beats:
+  - intent: "Get warm, take in the room, and get Maren talking about the missing Ember."
+    until_turn: 3
+  - intent: "Hear Gorrick out on sealing the mine, and push back with a reason he might accept."
+    until_turn: 5
+  - intent: "Visit the Ember Shrine and find out what Brother Tobin is not saying about that night."
+    until_turn: 8
+  - intent: "Follow the clues toward whoever took the Ember."
+    until_turn: 10

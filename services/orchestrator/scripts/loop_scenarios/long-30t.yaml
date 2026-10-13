@@ -1,0 +1,18 @@
+# Closed-loop scenario: 30-turn long (the whole one-shot).
+scenario:
+  id: long-30t
+  run_slug: eval
+  turns: 30
+beats:
+  - intent: "Arrive at the inn, get warm, and learn what the missing Ember means to the Hollow."
+    until_turn: 4
+  - intent: "Question Maren, Gorrick and Brother Tobin; work out who had the chance to take the Ember."
+    until_turn: 10
+  - intent: "Search the shrine and the village for evidence, and follow it toward the old delve."
+    until_turn: 14
+  - intent: "Stop or delay Gorrick's plan to seal the mine while someone may still be inside."
+    until_turn: 18
+  - intent: "Go into the old delve, get past the rime-crawlers, and find whoever lit the upper forge."
+    until_turn: 24
+  - intent: "Bring the Ember home to the shrine before the frost takes the village, and decide what happens to the person who took it."
+    until_turn: 30

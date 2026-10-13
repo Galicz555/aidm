@@ -1,0 +1,25 @@
+# Closed-loop scenario: 50-turn marathon (degradation-curve probe).
+# Same run and world as long-30t; the extra 20 turns measure where
+# long-form failure modes set in (prose tics, register drift, directive
+# fatigue) once the main story is resolved.
+scenario:
+  id: marathon-50t
+  run_slug: eval
+  turns: 50
+beats:
+  - intent: "Arrive at the inn, get warm, and learn what the missing Ember means to the Hollow."
+    until_turn: 4
+  - intent: "Question Maren, Gorrick and Brother Tobin; work out who had the chance to take the Ember."
+    until_turn: 10
+  - intent: "Search the shrine and the village for evidence, and follow it toward the old delve."
+    until_turn: 14
+  - intent: "Stop or delay Gorrick's plan to seal the mine while someone may still be inside."
+    until_turn: 18
+  - intent: "Go into the old delve, get past the rime-crawlers, and find whoever lit the upper forge."
+    until_turn: 26
+  - intent: "Bring the Ember home to the shrine before the frost takes the village."
+    until_turn: 32
+  - intent: "Help the person who took the Ember face the village, the Lodge and Brother Tobin."
+    until_turn: 40
+  - intent: "Settle accounts in the Hollow: the lamp-glass, the guild mark, and whether to stay or move on."
+    until_turn: 50

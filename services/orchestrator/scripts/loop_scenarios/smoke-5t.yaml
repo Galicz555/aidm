@@ -1,0 +1,12 @@
+# Closed-loop scenario: 5-turn smoke (arrival at the inn).
+# Consumed by loop_sim.py. `beats` are player intents the simulator
+# pursues in order; `until_turn` is the last turn a beat stays active.
+scenario:
+  id: smoke-5t
+  run_slug: eval
+  turns: 5
+beats:
+  - intent: "Get warm, take in the room, and work out why everyone is sitting so close to the fire in summer."
+    until_turn: 2
+  - intent: "Get Maren talking: what happened to the Ember, and who in the village is not saying what they know."
+    until_turn: 5
