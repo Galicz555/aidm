@@ -29,15 +29,18 @@ def test_unknown_locale_raises() -> None:
         persona_for("de")
 
 
-def test_private_mode_uses_private_variant_when_present() -> None:
-    public = persona_for("hu", mode="public")
-    private = persona_for("hu", mode="private")
-    # Private prompt is a separate file with deliberately different
-    # guidance (shorter turns, stricter tool-use exhortation). It MUST
-    # diverge from the public one in private mode.
-    assert public != private
-    assert "vault_grep" in private  # explicit tool-use directive
-    assert len(private) > 200
+def test_private_mode_uses_private_variant_when_present(
+    tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A locale's ``.private.md`` variant (tuned for the local model) wins
+    # in private mode; public mode keeps the public prompt. No private
+    # variant ships, so the pair is written into a temporary prompts dir.
+    fake_prompts = tmp_path  # type: ignore[assignment]
+    (fake_prompts / "dm.zz.md").write_text("zz public prompt", encoding="utf-8")
+    (fake_prompts / "dm.zz.private.md").write_text("zz private prompt", encoding="utf-8")
+    monkeypatch.setattr(persona_module, "_PROMPTS_DIR", fake_prompts)
+    assert persona_for("zz", mode="private") == "zz private prompt"
+    assert persona_for("zz", mode="public") == "zz public prompt"
 
 
 def test_private_mode_falls_back_to_public_when_variant_missing(

@@ -31,10 +31,15 @@ from aidm.server import _locale_from_request, create_app  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 
-def test_app_builds_without_lifespan() -> None:
+def test_app_builds_without_lifespan(monkeypatch: pytest.MonkeyPatch) -> None:
     # No lifespan run — we only want to confirm the routes register and
     # the middleware stack assembles. Endpoints that touch app.state
-    # would 500 in this mode; /health does not.
+    # would 500 in this mode; /health does not. create_app reads the
+    # config, so public mode needs its keys set (a fresh clone has no .env).
+    monkeypatch.setenv("AIDM_MODE", "public")
+    monkeypatch.setenv("GROQ_API_KEY", "test")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test")
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "test")
     app = create_app()
     routes = {route.path for route in app.routes}  # type: ignore[attr-defined]
     assert "/health" in routes

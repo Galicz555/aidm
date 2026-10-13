@@ -23,9 +23,9 @@ from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.tests.utils import run_test
 from scripts.lint_vault import _lint_file
 
-_VOICE = (
-    Path(__file__).resolve().parent / "fixtures" / "spell-voice.md"
-).read_text(encoding="utf-8")
+_VOICE = (Path(__file__).resolve().parent / "fixtures" / "spell-voice.md").read_text(
+    encoding="utf-8"
+)
 _SHEET = """---
 type: character
 lang: en
