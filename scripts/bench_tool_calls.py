@@ -13,7 +13,7 @@ Run from the repo root::
     docker compose --profile private up -d llm-gateway       # or: services/llm-gateway/entrypoint.sh
     make bench-tools                                  # English set (default)
     make bench-tools BENCH_ARGS="--lang hu"           # historical hu/en mix
-    PROFILE=qwen38-tuned make bench-tools             # a model profile's DM mode
+    PROFILE=qwen3-14b-thinking make bench-tools    # a model profile's DM mode
 
 Fixture sets: ``--lang en`` (``fixtures/tool_calls.en.yaml``) is the
 default whenever ``AIDM_LOCALE`` is unset or ``en``; ``--lang hu`` runs
@@ -23,8 +23,7 @@ the original ``fixtures/tool_calls.yaml``. With ``AIDM_DM_THINKING`` on
 
 Pass thresholds live in :func:`evaluate` — currently ≥85% tool selection
 correct, ≥75% argument predicate correct, both required. The script
-exits 0 on pass and non-zero on fail; PLAN.md gates Phase 7 ship on
-that exit code.
+exits 0 on pass and non-zero on fail; a model swap ships only on a pass.
 
 This is a batch job, not a reactive loop.
 """

@@ -41,10 +41,10 @@ Usage::
         [--all] [--no-excise] [--dump out.jsonl] [--summary-json out.json]
 
     # one JSON per (model, profile): same 50 prompts, gateway on that profile
-    PROFILE=qwen38-tuned make gateway-profile
-    set -a; . services/llm-gateway/profiles/qwen38-tuned.env; set +a
+    PROFILE=qwen3-14b-thinking make gateway-profile
+    set -a; . services/llm-gateway/profiles/qwen3-14b-thinking.env; set +a
     uv run python services/orchestrator/scripts/eval_replay_guard.py <replay> \\
-        --all --live-guards --summary-json docs/bench/<date>/profiles/qwen38-tuned.json
+        --all --live-guards --summary-json docs/bench/<date>/profiles/qwen3-14b-thinking.json
 """
 
 from __future__ import annotations

@@ -130,7 +130,7 @@ logs-private: ## Tail private-profile logs
 PROFILES_DIR = services/llm-gateway/profiles
 PROFILE_ENV = $(if $(PROFILE),test -f $(PROFILES_DIR)/$(PROFILE).env && set -a && . ./$(PROFILES_DIR)/$(PROFILE).env && set +a &&,)
 
-gateway-profile: ## Recreate llm-gateway with a model profile's gateway vars (PROFILE=qwen3-14b|qwen38-asis|...)
+gateway-profile: ## Recreate llm-gateway with a model profile's gateway vars (PROFILE=qwen3-14b|qwen3-14b-thinking|...)
 	@test -n "$(PROFILE)" || (echo "usage: make gateway-profile PROFILE=<name>  (ls $(PROFILES_DIR))" && exit 2)
 	$(PROFILE_ENV) docker compose --profile private up -d --no-deps --force-recreate llm-gateway
 

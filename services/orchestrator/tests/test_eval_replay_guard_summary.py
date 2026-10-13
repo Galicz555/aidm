@@ -92,7 +92,7 @@ async def test_summary_json_records_guard_activity_latency_and_profile(
 ) -> None:
     monkeypatch.setenv("AIDM_MODE", "private")
     monkeypatch.setenv("VAULT_PATH", str(tmp_path / "c"))
-    monkeypatch.setenv("AIDM_PROFILE", "qwen38-tuned")
+    monkeypatch.setenv("AIDM_PROFILE", "qwen3-14b-thinking")
     monkeypatch.setenv("AIDM_DM_THINKING", "1")
     for key in ("AIDM_GUARD_TICS", "AIDM_GUARD_PARAGRAPH", "AIDM_GUARD_REPLAY"):
         monkeypatch.delenv(key, raising=False)
@@ -111,7 +111,7 @@ async def test_summary_json_records_guard_activity_latency_and_profile(
         await _module().main()
 
     summary = json.loads(out.read_text(encoding="utf-8"))
-    assert summary["profile"] == "qwen38-tuned"
+    assert summary["profile"] == "qwen3-14b-thinking"
     assert summary["dm_thinking"] is True
     assert summary["guards"]["directives"] is False
     assert summary["turns"] == 3

@@ -1,6 +1,6 @@
 """Per-model harness knobs: DM thinking and the four pre-release guard switches.
 
-Defaults must reproduce the Qwen3-14B-tuned harness exactly; each ``guard_*``
+Defaults must reproduce the baseline harness exactly; each ``guard_*``
 off disables exactly its own guard; ``dm_thinking`` reaches the DM request
 only; and llama.cpp ``reasoning_content`` deltas never reach the guards,
 the transcript/TTS text frames, or ``LLMContext`` history.
@@ -154,7 +154,7 @@ def _min_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(key, raising=False)
 
 
-def test_knob_defaults_keep_the_omega_harness(
+def test_knob_defaults_keep_the_baseline_harness(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _min_env(monkeypatch, tmp_path)
@@ -171,11 +171,11 @@ def test_each_knob_is_read_from_its_env_var(
     for key in _KNOB_ENV[1:5]:
         monkeypatch.setenv(key, "0")
     monkeypatch.setenv("AIDM_DM_THINKING", "1")
-    monkeypatch.setenv("AIDM_PROFILE", "qwen38-tuned")
+    monkeypatch.setenv("AIDM_PROFILE", "qwen3-14b-thinking")
     config = load_config()
     assert config.dm_thinking is True
     assert not any(getattr(config, g) for g in _GUARDS)
-    assert config.profile == "qwen38-tuned"
+    assert config.profile == "qwen3-14b-thinking"
 
 
 # ---- thinking reaches the DM request only -------------------------------
@@ -414,26 +414,14 @@ def _profile(name: str) -> dict[str, str]:
 
 def test_profiles_share_one_key_set_and_name_themselves() -> None:
     names = sorted(p.stem for p in _PROFILES.glob("*.env"))
-    assert names == [
-        "gemma4-31b-asis",
-        "gemma4-31b-iq2m-asis",
-        "gemma4-31b-iq3xxs-asis",
-        "gemma4-31b-tuned",
-        "qwen3-14b",
-        "qwen38-asis",
-        "qwen38-iq3",
-        "qwen38-iq3-asis",
-        "qwen38-tuned",
-    ]
+    assert names == ["qwen3-14b", "qwen3-14b-thinking"]
     keys = {n: set(_profile(n)) for n in names}
     assert all(k == keys["qwen3-14b"] for k in keys.values())
     assert all(_profile(n)["AIDM_PROFILE"] == n for n in names)
 
 
-@pytest.mark.parametrize(
-    "name",
-    ["qwen38-asis", "qwen38-iq3-asis", "gemma4-31b-asis", "gemma4-31b-iq2m-asis", "gemma4-31b-iq3xxs-asis"],
-)
+# No "-asis" profile ships today; the invariant holds for any one added.
+@pytest.mark.parametrize("name", sorted(p.stem for p in _PROFILES.glob("*-asis.env")))
 def test_asis_profiles_change_only_model_and_offload(name: str) -> None:
     base, asis = _profile("qwen3-14b"), _profile(name)
     # A chat-template swap is compatibility, not tuning: the GGUF template
@@ -443,7 +431,7 @@ def test_asis_profiles_change_only_model_and_offload(name: str) -> None:
     assert {k for k in base if base[k] != asis[k]} <= _ASIS_DELTA
 
 
-def test_omega_profile_keeps_thinking_off_and_every_guard_on() -> None:
+def test_baseline_profile_keeps_thinking_off_and_every_guard_on() -> None:
     baseline = _profile("qwen3-14b")
     assert baseline["AIDM_DM_THINKING"] == "0"
     assert baseline["AIDM_LLM_REASONING_BUDGET"] == "0"
@@ -451,7 +439,7 @@ def test_omega_profile_keeps_thinking_off_and_every_guard_on() -> None:
     assert all(baseline[f"AIDM_GUARD_{g}"] == "1" for g in guards)
 
 
-@pytest.mark.parametrize("name", ["qwen38-tuned", "gemma4-31b-tuned"])
+@pytest.mark.parametrize("name", ["qwen3-14b-thinking"])
 def test_tuned_profiles_think_on_the_dm_only_with_reasoning_split_out(name: str) -> None:
     tuned = _profile(name)
     assert tuned["AIDM_DM_THINKING"] == "1"
