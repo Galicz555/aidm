@@ -19,7 +19,7 @@ transport.input() → Silero VAD → STT → forwarder.user → ctx.user → LLM
 | Slot | `public` (default) | `private` |
 |------|--------------------|-----------|
 | STT  | Groq Whisper Large-v3 Turbo or ElevenLabs Scribe v2 (`STT_PROVIDER`) | Faster-Whisper Large-v3, local |
-| LLM  | OpenRouter → Google Gemini 2.5 Flash (default; swap via `OPENROUTER_MODEL`) | llama.cpp → Qwen3-14B (Q5_K_M, 16k ctx) |
+| LLM  | OpenRouter → Claude Sonnet 4.5 (default; swap via `OPENROUTER_MODEL`) | llama.cpp → Qwen3-14B (Q5_K_M, 16k ctx) |
 | TTS  | ElevenLabs Multilingual v2 / v3 alpha | MOSS-TTS-Nano, local CPU |
 
 The factories in `aidm/providers/` are the only place that knows which backend lives in each slot.
@@ -64,7 +64,7 @@ Optional:
 - `AIDM_MODE` — `public` (default) or `private` (Faster-Whisper + llama.cpp/Qwen3-14B + MOSS-TTS-Nano via the `private` compose profile).
 - `AIDM_TRANSPORT` — `local` (default, PyAudio CLI) or `webrtc` (FastAPI + browser).
 - `AIDM_SERVER_HOST` / `AIDM_SERVER_PORT` — bind address for `AIDM_TRANSPORT=webrtc` (default `127.0.0.1:8000`).
-- `AIDM_LOCALE` — `hu` (default) or `en`. Acts as the seed for `SessionContext.locale`; the browser client can override per-session via the start-form dropdown.
+- `AIDM_LOCALE` — `en` (default) or `hu`. Acts as the seed for `SessionContext.locale`; the browser client can override per-session via the start-form dropdown.
 - `AIDM_LOG_LEVEL` — `TRACE`/`DEBUG`/`INFO`/`WARNING` (default `INFO`). `INFO` = turn anchors only; `DEBUG` = + turn narrative (no prompt dumps, no per-chunk emits, no HTTP wire logs); `TRACE` = the firehose (full context dumps, per-chunk splitter/sink emits, httpx/httpcore/openai wire logs). `make start-private-text-debug` runs at `DEBUG`; prefix with `AIDM_LOG_LEVEL=TRACE` to restore the firehose.
 - `AIDM_PROMPT_FILE` — override the locale-based persona lookup with an absolute path.
 - `AIDM_LLM_TEMPERATURE` / `AIDM_LLM_TOP_P` / `AIDM_LLM_MIN_P` / `AIDM_LLM_FREQUENCY_PENALTY` / `AIDM_LLM_PRESENCE_PENALTY` — private-mode sampling, sent per request by `llm_local` (no gateway rebuild). Model-dependent: instruct ~0.35 temp, creative finetunes ~0.65. `min_p` is llama.cpp-only, routed via `extra_body`.

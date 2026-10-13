@@ -65,8 +65,8 @@ from a rulebook PDF, navigated by `vault_grep`, never read in full.
 Source PDFs / DOCX of rulebooks live **outside the vault**, under
 `rulebooks/<campaign>/`. They're gitignored (usually copyrighted) and
 never seen by the DM-LLM. `scripts/import_rulebook.py` converts them
-into markdown under `rules/` or `rules/<system>/`. See
-`rulebooks/README.md` for the conversion workflow.
+into markdown under `rules/` or `rules/<system>/` (run it with
+`--help` for the options).
 
 ## Karpathy-RAG, not vector DB
 
