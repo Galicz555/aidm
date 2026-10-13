@@ -10,7 +10,7 @@ same base ``BaseWhisperSTTService`` uses for Groq's hosted Whisper.
 Only ``run_stt`` differs: we POST the WAV instead of calling the OpenAI
 SDK against Whisper.
 
-No partial transcripts in Phase 7 — see PLAN.md "Risks". The remote
+No partial transcripts in Phase 7. The remote
 service is request/response; revisit when latency demands streaming.
 """
 

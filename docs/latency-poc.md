@@ -9,7 +9,7 @@ or ElevenLabs Scribe v2 → OpenRouter (Claude Sonnet 4.5) → ElevenLabs
 Multilingual v2.
 
 Phase 6 (browser via WebRTC, `AIDM_TRANSPORT=webrtc`) gets its own
-measurement at `latency-browser.md` to confirm no regression versus the
+measurement to confirm no regression versus the
 local-audio baseline below. Private mode (Phase 7) targets ≤3.5s round-
 trip on RTX 5060 Ti 16GB and gets its own measurements at
 `latency-private.md` when it lands.

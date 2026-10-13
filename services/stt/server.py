@@ -3,7 +3,7 @@
 A thin FastAPI process around a single ``WhisperModel`` instance. The
 orchestrator POSTs a complete utterance (WAV bytes, VAD-bounded upstream)
 and receives the final transcript in one response. No partial streaming
-in Phase 7 — see PLAN.md "Risks" section. The endpoint shape mirrors what
+in Phase 7. The endpoint shape mirrors what
 ``aidm/providers/stt_whisper_local.py`` expects, so the two halves can
 move in lockstep.
 
